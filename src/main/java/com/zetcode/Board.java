@@ -1,8 +1,6 @@
 package com.zetcode;
 
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Image;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -36,6 +34,7 @@ public class Board extends JPanel {
     public static final int BOARD_HEIGHT = N_COLS * CELL_SIZE + 1;
 
     private int[] field;
+    private double[] probField;
     private boolean inGame;
     private int minesLeft;
     private Image[] img;
@@ -75,9 +74,11 @@ public class Board extends JPanel {
 
         allCells = N_ROWS * N_COLS;
         field = new int[allCells];
+        probField = new double[allCells];
 
         for (int i = 0; i < allCells; i++) {
             field[i] = COVER_FOR_CELL;
+            probField[i] = ((double)i)/allCells;
         }
 
         statusbar.setText(Integer.toString(minesLeft));
@@ -284,8 +285,18 @@ public class Board extends JPanel {
                     }
                 }
 
-                g.drawImage(img[cell], (j * CELL_SIZE),
-                        (i * CELL_SIZE), this);
+                if (cell != COVER_FOR_CELL ) {
+                    g.drawImage(img[cell], (j * CELL_SIZE),
+                            (i * CELL_SIZE), this);
+                }
+                else {
+                    double prob = probField[(i * N_COLS) + j]+0.05;
+                    g.setColor(prob < 1 ? new Color( 255, (int) (255 * (1-prob)),(int) (255 * (1-prob))) : new Color(0,0,0));
+                    g.fillRect(j* CELL_SIZE +1, i*CELL_SIZE + 1, CELL_SIZE-1, CELL_SIZE-1);
+                    //g.drawImage(img[cell], (j * CELL_SIZE),
+                     //       (i * CELL_SIZE), new Color(255,0,0), this);
+
+                }
             }
         }
 

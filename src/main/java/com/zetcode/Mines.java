@@ -17,9 +17,7 @@ public class Mines extends JFrame {
     private JLabel statusbar;
     
     public Mines() {
-        
         initUI();
-
     }
     
     private void initUI() {
@@ -41,7 +39,7 @@ public class Mines extends JFrame {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (true) {
+                while (board.getGamesPlayed() < 100) {
                     player.play();
                     try {
                         Thread.sleep(500);
@@ -53,7 +51,6 @@ public class Mines extends JFrame {
         });
 
         //t.start();
-
     }
     
     public static void main(String[] args) {

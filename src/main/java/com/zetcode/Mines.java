@@ -39,10 +39,10 @@ public class Mines extends JFrame {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (board.getGamesPlayed() < 100) {
+                while (board.getGamesPlayed() < 1000) {
                     player.play();
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(10);
                     } catch (InterruptedException e){
                         e.printStackTrace();
                     }
@@ -50,7 +50,7 @@ public class Mines extends JFrame {
             }
         });
 
-        //t.start();
+        t.start();
     }
     
     public static void main(String[] args) {

@@ -33,19 +33,27 @@ public class Board extends JPanel {
     public static final int DRAW_FLAG = 11;
     public static final int DRAW_WRONG_FLAG = 12;
 
-    public static final int N_MINES = 10;
-    public static final int N_ROWS = 10;
-    public static final int N_COLS = 10;
+    public static final int N_MINES = 48;
+    public static final int N_ROWS = 30;
+    public static final int N_COLS = 16;
     public static final int N_CELLS = N_ROWS * N_COLS;
 
     public static final int neighbours[][] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
 
-    public static final int BOARD_WIDTH = N_ROWS * CELL_DISPLAY_SIZE + 1;
-    public static final int BOARD_HEIGHT = N_COLS * CELL_DISPLAY_SIZE + 1;
+    public static final int BOARD_WIDTH = N_COLS * CELL_DISPLAY_SIZE + 1;
+    public static final int BOARD_HEIGHT = N_ROWS * CELL_DISPLAY_SIZE + 1;
 
     private int[][] cellValues;
     private int[][] cellVisibilities;
+
     private double[][] probabilities;
+    private int invisibleCount;
+    private int[][] flaggedNeighboursCount;
+    private int[][] probableFlags;
+    private int[][] invisibleNeighboursCount;
+
+    private int numMoves;
+
     private boolean inGame;
     private int minesLeft;
     private Image[] img;
@@ -54,12 +62,18 @@ public class Board extends JPanel {
 
     private int gamesWon;
     private int gamesLost;
+    private int gamesLostQuickly;
 
     public Board(JLabel statusbar) {
         this.statusbar = statusbar;
         initBoard();
         gamesWon = 0;
         gamesLost = 0;
+        gamesLostQuickly = 0;
+
+        flaggedNeighboursCount = new int[N_ROWS][N_COLS];
+        probableFlags = new int[N_ROWS][N_COLS];
+        invisibleNeighboursCount = new int[N_ROWS][N_COLS];
     }
 
     public int getGamesWon(){
@@ -133,6 +147,8 @@ public class Board extends JPanel {
     public void newGame() {
         inGame = true;
         minesLeft = N_MINES;
+
+        numMoves = 0;
 
         cellValues = new int[N_ROWS][N_COLS];
         cellVisibilities = new int[N_ROWS][N_COLS];
@@ -251,12 +267,17 @@ public class Board extends JPanel {
         if (minesLeft == 0){
             statusbar.setText("Game won");
             gamesWon ++;
-            System.out.println("Games won: " + gamesWon + ", games lost: " + gamesLost);
+            System.out.println("Games won: " + gamesWon + ", games lost: " + gamesLost + " of which quickly: " + gamesLostQuickly);
+            System.out.println("That game was won in " + numMoves+" moves" );
             newGame();
         } else if (!inGame) {
             statusbar.setText("Game lost");
             gamesLost ++;
-            System.out.println("Games won: " + gamesWon + ", games lost: " + gamesLost);
+            System.out.println("Games won: " + gamesWon + ", games lost: " + gamesLost + " of which quickly: " + gamesLostQuickly);
+            System.out.println("That game was lost in " + numMoves+" moves");
+            if (numMoves < 5){
+                gamesLostQuickly++;
+            }
             newGame();
         }
     }
@@ -272,6 +293,8 @@ public class Board extends JPanel {
         if (cellVisibility == VISIBLE){
             return false;
         }
+
+        numMoves++;
 
         if (isFlag) {
             if (cellVisibility == FLAGGED){
@@ -302,34 +325,32 @@ public class Board extends JPanel {
         return true;
     }
 
-    private void updateProbabilities(){
-        int invisibleCount = 0;
-        int[][] invisibleNeighboursCount = new int[N_ROWS][N_COLS];
-        int[][] flaggedNeighboursCount = new int[N_ROWS][N_COLS];
-        for (int i = 0; i < N_ROWS; i++){
-            for (int j = 0; j < N_COLS; j ++){
+    private void updateProbabilities() {
+        invisibleCount = 0;
+        for (int i = 0; i < N_ROWS; i++) {
+            for (int j = 0; j < N_COLS; j++) {
                 invisibleNeighboursCount[i][j] = 0;
                 flaggedNeighboursCount[i][j] = 0;
-
+                probableFlags[i][j] = 0;
             }
         }
-        for (int i = 0; i < N_ROWS; i++){
-            for (int j = 0; j < N_COLS; j++){
-                if (cellVisibilities[i][j] == INVISIBLE){
+        for (int i = 0; i < N_ROWS; i++) {
+            for (int j = 0; j < N_COLS; j++) {
+                if (cellVisibilities[i][j] == INVISIBLE) {
                     invisibleCount++;
-                    for (int[] neighbour: neighbours){
+                    for (int[] neighbour : neighbours) {
                         int x = neighbour[0] + i;
                         int y = neighbour[1] + j;
-                        if (x < 0 || x >= N_ROWS || y < 0 || y >= N_COLS){
+                        if (x < 0 || x >= N_ROWS || y < 0 || y >= N_COLS) {
                             continue;
                         }
                         invisibleNeighboursCount[x][y]++;
                     }
-                } else if (cellVisibilities[i][j] == FLAGGED){
-                    for (int[] neighbour: neighbours){
+                } else if (cellVisibilities[i][j] == FLAGGED) {
+                    for (int[] neighbour : neighbours) {
                         int x = neighbour[0] + i;
                         int y = neighbour[1] + j;
-                        if (x < 0 || x >= N_ROWS || y < 0 || y >= N_COLS){
+                        if (x < 0 || x >= N_ROWS || y < 0 || y >= N_COLS) {
                             continue;
                         }
                         flaggedNeighboursCount[x][y]++;
@@ -337,16 +358,43 @@ public class Board extends JPanel {
                 }
             }
         }
-        for (int i = 0; i < N_ROWS; i++){
+        for (int i = 0; i < N_ROWS; i++) {
+            for (int j = 0; j < N_COLS; j++) {
+                if (cellVisibilities[i][j] == INVISIBLE) {
+                    probabilities[i][j] = calculateProbability(i, j);
+                    for (int[] neighbour : neighbours) {
+                        int x = neighbour[0] + i;
+                        int y = neighbour[1] + j;
+                        if (x < 0 || x >= N_ROWS || y < 0 || y >= N_COLS) {
+                            continue;
+                        }
+                        probableFlags[x][y] += (probabilities[i][j] > 0.8) ? 1 : 0;
+                    }
+                }
+            }
+        }
+        adjustUp();
+    }
+
+    private void adjustUp(){
+        double adjustments[][] = new double[N_ROWS][N_COLS];
+        for (int i = 0; i < N_ROWS; i++) {
+            for (int j = 0; j < N_COLS; j++) {
+                if (cellVisibilities[i][j] == INVISIBLE) {
+                    adjustments[i][j] = calculateProbabilityBetter(i, j);
+                }
+            }
+        }
+        for (int i = 0; i < N_ROWS; i++) {
             for (int j = 0; j < N_COLS; j++){
-                if (cellVisibilities[i][j] == INVISIBLE){
-                    probabilities[i][j] = calculateProbability(i, j, invisibleCount, invisibleNeighboursCount, flaggedNeighboursCount);
+                if (probabilities[i][j] < 0.8 && (invisibleNeighboursCount[i][j] != countNeighbours(i,j))){
+                    probabilities[i][j] = adjustments[i][j];
                 }
             }
         }
     }
 
-    private double calculateProbability(int x, int y, int invisibleCount, int[][] invisibleNeighboursCount, int[][] flaggedNeighboursCount){
+    private double calculateProbability(int x, int y){
         if (invisibleNeighboursCount[x][y] == countNeighbours(x,y)){
             return ((double) minesLeft) / invisibleCount;
         }
@@ -362,6 +410,30 @@ public class Board extends JPanel {
                 double p = ((double) cellValues[i][j] - flaggedNeighboursCount[i][j]) / invisibleNeighboursCount[i][j];
                 minp = Math.min(p, minp);
                 maxp = Math.max(p, maxp);
+            }
+        }
+        if (minp < 1 - maxp){
+            return minp;
+        }
+        return maxp;
+    }
+
+    private double calculateProbabilityBetter(int x, int y){
+        if (invisibleNeighboursCount[x][y] == countNeighbours(x,y)){
+            return ((double) minesLeft) / invisibleCount;
+        }
+        double minp = 1;
+        double maxp = 0;
+        for (int[] neighbour : Board.neighbours){
+            int i = x + neighbour[0];
+            int j = y + neighbour[1];
+            if (i < 0 || i >= N_ROWS || j < 0 || j >= N_COLS){
+                continue;
+            }
+            if (cellVisibilities[i][j] == VISIBLE){
+                double p = ((double) cellValues[i][j] - flaggedNeighboursCount[i][j] - probableFlags[i][j]) / invisibleNeighboursCount[i][j];
+                minp = Math.max(0,Math.min(p, minp));
+                maxp = Math.min(1,Math.max(p, maxp));
             }
         }
         if (minp < 1 - maxp){

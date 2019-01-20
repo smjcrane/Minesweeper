@@ -39,7 +39,7 @@ public class Mines extends JFrame {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (board.getGamesPlayed() < 1000) {
+                while (board.getGamesPlayed() < 200) {
                     player.play();
                     try {
                         Thread.sleep(10);

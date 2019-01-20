@@ -33,9 +33,9 @@ public class Board extends JPanel {
     public static final int DRAW_FLAG = 11;
     public static final int DRAW_WRONG_FLAG = 12;
 
-    public static final int N_MINES = 40;
-    public static final int N_ROWS = 16;
-    public static final int N_COLS = 16;
+    public static final int N_MINES = 10;
+    public static final int N_ROWS = 10;
+    public static final int N_COLS = 10;
     public static final int N_CELLS = N_ROWS * N_COLS;
 
     public static final int neighbours[][] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
@@ -264,7 +264,7 @@ public class Board extends JPanel {
             }
         }
 
-        if (minesLeft == 0){
+        if (minesLeft == 0 && invisibleCount == 0){
             statusbar.setText("Game won");
             gamesWon ++;
             System.out.println("Games won: " + gamesWon + ", games lost: " + gamesLost + " of which quickly: " + gamesLostQuickly);
@@ -433,7 +433,7 @@ public class Board extends JPanel {
     }
 
     private double calculateProbability(int x, int y){
-        if (invisibleNeighboursCount[x][y] == countNeighbours(x,y)){
+        if (invisibleNeighboursCount[x][y] + flaggedNeighboursCount[x][y] == countNeighbours(x,y)){
             return ((double) minesLeft) / invisibleCount;
         }
         double minp = 1;

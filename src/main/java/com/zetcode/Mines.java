@@ -52,12 +52,11 @@ public class Mines extends JFrame {
             }
         });
 
-        t.start();
+        //t.start();
 
     }
     
     public static void main(String[] args) {
-        
         EventQueue.invokeLater(() -> {
             Mines ex = new Mines();
             ex.setVisible(true);

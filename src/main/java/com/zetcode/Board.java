@@ -33,8 +33,8 @@ public class Board extends JPanel {
     public static final int DRAW_FLAG = 11;
     public static final int DRAW_WRONG_FLAG = 12;
 
-    public static final int N_MINES = 48;
-    public static final int N_ROWS = 30;
+    public static final int N_MINES = 40;
+    public static final int N_ROWS = 16;
     public static final int N_COLS = 16;
     public static final int N_CELLS = N_ROWS * N_COLS;
 
@@ -64,8 +64,14 @@ public class Board extends JPanel {
     private int gamesLost;
     private int gamesLostQuickly;
 
+    private Random random;
+
     public Board(JLabel statusbar) {
         this.statusbar = statusbar;
+
+        random = new Random();
+        random.setSeed(42);
+
         initBoard();
         gamesWon = 0;
         gamesLost = 0;
@@ -124,9 +130,6 @@ public class Board extends JPanel {
     }
 
     private void placeMines(){
-        Random random = new Random();
-        random.setSeed(System.nanoTime());
-
         for (int i = 0; i < N_MINES; i++){
             int x = random.nextInt(N_ROWS);
             int y = random.nextInt(N_COLS);
@@ -170,7 +173,6 @@ public class Board extends JPanel {
 
 
     public void find_empty_cells(int x, int y) {
-
         if (cellValues[x][y] != EMPTY_CELL){
             cellVisibilities[x][y] = VISIBLE;
             return;
@@ -178,8 +180,6 @@ public class Board extends JPanel {
 
         List<String> toVisit = new ArrayList<>();
         toVisit.add(x + " " + y);
-
-
 
         while (toVisit.size() > 0){
             String string = toVisit.get(0);
@@ -373,23 +373,61 @@ public class Board extends JPanel {
                 }
             }
         }
-        adjustUp();
+        doBayes();
     }
 
-    private void adjustUp(){
-        double adjustments[][] = new double[N_ROWS][N_COLS];
+    private void doBayes(){
+        double newProbs[][] = new double[N_ROWS][N_COLS];
         for (int i = 0; i < N_ROWS; i++) {
             for (int j = 0; j < N_COLS; j++) {
                 if (cellVisibilities[i][j] == INVISIBLE) {
-                    adjustments[i][j] = calculateProbabilityBetter(i, j);
+                    if (probabilities[i][j] == 0 || probabilities[i][j] == 1 || invisibleNeighboursCount[i][j] == countNeighbours(i,j)){
+                        newProbs[i][j] = probabilities[i][j];
+                        continue;
+                    }
+                    double minfac = 1;
+                    double maxfac = 0;
+                    for (int[] neighbour : Board.neighbours) {
+                        int x = i + neighbour[0];
+                        int y = j + neighbour[1];
+                        if (x < 0 || x >= N_ROWS || y < 0 || y >= N_COLS) {
+                            continue;
+                        }
+                        double minpab = 1;
+                        double maxpab = 0;
+                        if (cellVisibilities[x][y] == INVISIBLE) {
+                            for (int[] neighbour2 : Board.neighbours) {
+                                int r = x + neighbour2[0];
+                                int s = y + neighbour2[1];
+                                if (r < 0 || r >= N_ROWS || s < 0 || s >= N_COLS) {
+                                    continue;
+                                }
+                                if (r == i && s == j){
+                                    continue;
+                                }
+                                if (cellVisibilities[r][s] == VISIBLE){
+                                    if ((Math.abs(i - r) <= 1 && Math.abs(j - s) <= 1)){
+                                        double pabn = ((double) cellValues[i][j] - flaggedNeighboursCount[i][j] - 1) / invisibleNeighboursCount[i][j];
+                                        minpab = Math.min(minpab, pabn);
+                                        maxpab = Math.max(maxpab, pabn);
+                                    }
+                                }
+                            }
+                            minfac = Math.min(minfac, minpab / probabilities[i][j]);
+                            maxfac = Math.max(maxfac, maxpab / probabilities[i][j]);
+                        }
+                    }
+                    if (minfac * probabilities[i][j] < 1 - maxfac * probabilities[i][j]){
+                        newProbs[i][j] = Math.max(0,minfac * probabilities[i][j]);
+                    } else {
+                        newProbs[i][j] = Math.min(1,maxfac * probabilities[i][j]);
+                    }
                 }
             }
         }
         for (int i = 0; i < N_ROWS; i++) {
             for (int j = 0; j < N_COLS; j++){
-                if (probabilities[i][j] < 0.8 && (invisibleNeighboursCount[i][j] != countNeighbours(i,j))){
-                    probabilities[i][j] = adjustments[i][j];
-                }
+                probabilities[i][j] = newProbs[i][j];
             }
         }
     }
